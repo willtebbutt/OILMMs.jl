@@ -1,6 +1,13 @@
+using Distributions
+using LinearAlgebra
 using OILMMs
+using Random
+using Stheno
 using Test
 
+using Stheno: AbstractGP
+
 @testset "OILMMs.jl" begin
-    # Write your own tests here.
+    include("test_util.jl")
+    include("oilmm.jl")
 end
