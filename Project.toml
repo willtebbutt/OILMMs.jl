@@ -1,0 +1,13 @@
+name = "OILMMs"
+uuid = "42abab5c-8093-4643-9324-a21c2f6fbe28"
+authors = ["willtebbutt <wt0881@my.bristol.ac.uk>"]
+version = "0.1.0"
+
+[compat]
+julia = "1"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
