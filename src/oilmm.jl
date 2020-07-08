@@ -41,7 +41,10 @@ end
 Base.length(f::FiniteOILMM) = length(f.x)
 
 # Note that `cholesky` exploits the diagonal structure of `S`.
-project_data(S::Diagonal, U::AbstractMatrix, Y::AbstractMatrix) = (cholesky(S).U \ U') * Y
+function project_data(S::Diagonal, U::AbstractMatrix, Y::AbstractMatrix)
+    A = cholesky(S).U \ U'
+    return A * Y
+end
 
 """
     rand_latent(rng::AbstractRNG, fx::FiniteOILMM)
@@ -148,7 +151,8 @@ function Stheno.logpdf(fx::FiniteOILMM, Y::ColVecs{<:Real})
 
     # Latent process log marginal likelihood calculation.
     ΣT = σ² * inv(S) + D
-    lmls_latents = map((f, s, y) -> logpdf(f(x, s), y), fs, ΣT.diag, eachrow(Yproj))
+    y_rows = collect(eachrow(Yproj))
+    lmls_latents = map((f, s, y) -> logpdf(f(x, s), y), fs, ΣT.diag, y_rows)
 
     # Reconstruction step.
     p = size(Y.X, 1)

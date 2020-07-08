@@ -11,4 +11,3 @@ An implementation of the Orthogonal Instantaneous Linear Mixing Model (OILMM).
 The Python implementation can be found [here](https://github.com/wesselb/oilmm).
 
 ## Bib Info
-
