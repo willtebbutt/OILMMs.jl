@@ -41,9 +41,34 @@ end
 Base.length(f::FiniteOILMM) = length(f.x)
 
 # Note that `cholesky` exploits the diagonal structure of `S`.
-function project_data(S::Diagonal, U::AbstractMatrix, Y::AbstractMatrix)
-    A = cholesky(S).U \ U'
-    return A * Y
+function project(
+    S::Diagonal{T},
+    U::AbstractMatrix{T},
+    Y::ColVecs{T},
+    σ²::T,
+    D::Diagonal{T},
+) where {T<:Real}
+
+    # Compute the projection of the data.
+    Yproj = cholesky(S).U \ U' * Y.X
+
+    # Compute the projected noise, which is a matrix of size `size(Yproj)`.
+    ΣT = repeat(diag(σ² * inv(S) + D), 1, size(Yproj, 2))
+
+    return Yproj, ΣT
+end
+
+# Compute the regularisation term in the log marginal likelihood. See e.g. appendix A.4.
+function regulariser(
+    S::Diagonal{T},
+    U::AbstractMatrix{T},
+    σ²::T,
+    Y::ColVecs{T},
+) where {T<:Real}
+    n = length(Y)
+    p, m = size(U)
+    return -(n * (logdet(cholesky(S)) + (p - m) * log(2π * σ²)) +
+        sum(abs2, (I - U * U') * Y.X) / σ²) / 2
 end
 
 """
@@ -143,25 +168,25 @@ end
 
 Follows implementation in appendix A.4 from Bruinsma et al 2020.
 """
-function Stheno.logpdf(fx::FiniteOILMM, Y::ColVecs{<:Real})
+function Stheno.logpdf(fx::FiniteOILMM, Y::ColVecs)
     fs, S, U, D, σ², x = unpack(fx)
 
     # Projection step.
-    Yproj = project_data(S, U, Y.X)
+    Yproj, ΣT = project(S, U, Y, σ², D)
 
     # Latent process log marginal likelihood calculation.
-    ΣT = σ² * inv(S) + D
     y_rows = collect(eachrow(Yproj))
-    lmls_latents = map((f, s, y) -> logpdf(f(x, s), y), fs, ΣT.diag, y_rows)
+    ΣT_rows = collect(eachrow(ΣT))
+    lmls_latents = map((f, s, y) -> logpdf(f(x, s), y), fs, ΣT_rows, y_rows)
 
-    # Reconstruction step.
-    p = size(Y.X, 1)
-    m = size(Yproj, 1)
-    n = length(Y)
-    regulariser = -(n * (logdet(cholesky(S)) + (p - m) * log(2π * σ²)) +
-        sum(abs2, (I - U * U') * Y.X) / σ²) / 2
+    # # Reconstruction step.
+    # p = size(Y.X, 1)
+    # m = size(Yproj, 1)
+    # n = length(Y)
+    # regulariser = -(n * (logdet(cholesky(S)) + (p - m) * log(2π * σ²)) +
+    #     sum(abs2, (I - U * U') * Y.X) / σ²) / 2
 
-    return regulariser + sum(lmls_latents)
+    return regulariser(S, U, σ², Y) + sum(lmls_latents)
 end
 
 """
@@ -169,15 +194,16 @@ end
 
 Returns the new `OILMM` object that results from conditioning `fx` on observations `Y`.
 """
-function posterior(fx::FiniteOILMM, Y::ColVecs{<:Real})
+function posterior(fx::FiniteOILMM, Y::ColVecs)
     fs, S, U, D, σ², x = unpack(fx)
 
     # Projection step.
-    Yproj = project_data(S, U, Y.X)
+    Yproj, ΣT = project(S, U, Y, σ², D)
 
     # Condition each latent process on the projected observations.
-    ΣT = σ² * inv(S) + D
-    fs_posterior = map((f, s, y) -> f | Obs(f(x, s), collect(y)), fs, ΣT.diag, eachrow(Yproj))
+    y_rows = collect(eachrow(Yproj))
+    ΣT_rows = collect(eachrow(ΣT))
+    fs_posterior = map((f, s, y) -> f | Obs(f(x, s), collect(y)), fs, ΣT_rows, y_rows)
 
     return OILMM(fs_posterior, U, S, σ², D)
 end

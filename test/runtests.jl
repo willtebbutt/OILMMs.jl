@@ -9,8 +9,11 @@ using Zygote
 
 using Stheno: AbstractGP
 
+# Helper functionality, doesn't actually run any tests.
+include("test_util.jl")
+
 @testset "OILMMs.jl" begin
-    include("test_util.jl")
     include("util.jl")
     include("oilmm.jl")
+    include("missing_data.jl")
 end

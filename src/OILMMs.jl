@@ -13,5 +13,6 @@ export OILMM, posterior, denoised_marginals, rand_latent
 
 include("util.jl")
 include("oilmm.jl")
+include("missing_data.jl")
 
 end # module
