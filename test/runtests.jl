@@ -13,7 +13,7 @@ using Stheno: AbstractGP
 include("test_util.jl")
 
 @testset "OILMMs.jl" begin
-    # include("util.jl")
+    include("util.jl")
     include("oilmm.jl")
     include("missing_data.jl")
 end

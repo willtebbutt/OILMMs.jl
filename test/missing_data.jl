@@ -25,7 +25,8 @@
         @test ΣT ≈ ΣT_missing
 
         # Ensure that the regularisation terms agree.
-        # @test OILMMs.regulariser(S, U, σ², y) ≈ OILMMs.regulariser(S, U, σ², y_missing)
+        reg = OILMMs.regulariser(S, U, σ², y_missing)
+        @test reg ≈ OILMMs.regulariser(S, U, σ², y)
 
         @testset "OILMMs.project AD" begin
 
@@ -35,7 +36,6 @@
             )
 
             # Ensure that the forwards-pass is consistent with usual evaluation.
-            # @show size(Yproj_ad), size(ΣT_ad), size(Yproj_missing), size(ΣT_missing)
             @test Yproj_ad ≈ Yproj_missing
             @test ΣT_ad ≈ ΣT_missing
 
@@ -43,7 +43,6 @@
             ΔYproj = randn(size(Yproj_ad))
             ΔΣT_proj = randn(size(ΣT_ad))
             Δout = (ΔYproj, ΔΣT_proj)
-            # @show typeof(S), typeof(U), typeof(y_missing), typeof(σ²), typeof(D)
             dX_fd = FiniteDifferences.j′vp(
                 central_fdm(5, 1),
                 (S, U, σ², D) -> OILMMs.project(S, U, y_missing, σ², D),
@@ -56,6 +55,29 @@
             @test dX_fd[2] ≈ dX_ad[2]
             @test dX_fd[3] ≈ dX_ad[4]
             @test dX_fd[4] ≈ dX_ad[5]
+        end
+
+        @testset "OILMMs.regulariser AD" begin
+
+            # Perform forwards-pass and construct pullback.
+            reg_ad, regulariser_ad = Zygote.pullback(OILMMs.regulariser, S, U, σ², y_missing)
+
+            # Ensure that the forwards-pass is consistent with usual evaluation.
+            @test reg_ad ≈ reg
+
+            # Estimate / evaluate cotangent of inputs.
+            Δreg = randn()
+            dX_fd = FiniteDifferences.j′vp(
+                central_fdm(5, 1),
+                (S, U, σ²) -> OILMMs.regulariser(S, U, σ², y_missing),
+                Δreg, S, U, σ²,
+            )
+            dX_ad = regulariser_ad(Δreg)
+
+            # Check for (approximate) equality beteen AD and finite differencing.
+            @test dX_fd[1] ≈ dX_ad[1]
+            @test dX_fd[2] ≈ dX_ad[2]
+            @test dX_fd[3] ≈ dX_ad[3]
         end
     end
 

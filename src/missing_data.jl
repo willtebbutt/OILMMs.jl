@@ -43,26 +43,29 @@ function regulariser(
 ) where {T<:Real}
 
     # Compute patterns and assignments of data to patterns.
-    patterns, rows, idxs, perm = compute_patterns(y.X)
+    patterns, rows, idxs, _ = compute_patterns(y.X)
 
     # Construct the projection matrix for each pattern.
-    Us = Dict(p => U[rows[p], :] for p in patterns)
+    Us = map(row -> U[row, :], rows)
 
     # Pre-compute one term.
     logdet_S = logdet(cholesky(S))
 
     # Compute the regularisation term for each block.
-    return sum(patterns) do pattern
-        Uo = Us[pattern]
-        n = length(idxs[pattern])
-        p, m = size(Uo)
+    regularisers = map(
+        (Uo, row, idx) -> begin
+            n = length(idx)
+            p, m = size(Uo)
 
-        chol_UotUo = cholesky(Symmetric(Uo'Uo + 1e-9I))
-        Yo = y.X[rows[pattern], idxs[pattern]]
+            chol_UotUo = cholesky(Symmetric(Uo'Uo + 1e-9I))
+            Yo = y.X[row, idx]
 
-        return -(n * (logdet_S + logdet(chol_UotUo) + (p - m) * log(2π * σ²)) +
-            (sum(abs2, Yo) - sum(abs2, chol_UotUo.U' \ Uo'Yo)) / σ²) / 2
-    end
+            return -(n * (logdet_S + logdet(chol_UotUo) + (p - m) * log(2π * σ²)) +
+                (sum(abs2, Yo) - sum(abs2, chol_UotUo.U' \ Uo'Yo)) / σ²) / 2
+        end,
+        Us, rows, idxs,
+    )
+    return sum(regularisers)
 end
 
 # Helper function for `project` that handles various bits of non-differentiable stuff
