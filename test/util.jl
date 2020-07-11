@@ -29,4 +29,19 @@
 
         @test first(dX_fd) ≈ first(dX_ad)
     end
+    @testset "inv(::Cholesky{<:BlasFloat, <:StridedMatrix}" begin
+        A = randn(3, 3)
+
+        f = A -> inv(cholesky(A * A' + I))
+
+        Ω, pb_inv_Chol = Zygote.pullback(f, A)
+        @test Ω == f(A)
+
+        ΔΩ = randn(3, 3)
+
+        dX_fd = FiniteDifferences.j′vp(central_fdm(5, 1), f, ΔΩ, A)
+        dX_ad = pb_inv_Chol(ΔΩ)
+
+        @test first(dX_fd) ≈ first(dX_ad)
+    end
 end

@@ -9,33 +9,28 @@ function project(
 ) where {T<:Real}
 
     # Compute patterns and assignments of data to patterns.
-    patterns, rows, idxs = compute_patterns(Y.X)
+    patterns, rows, idxs, perm = compute_patterns(Y.X)
 
     # Construct the projection matrix for each pattern.
-    Us = Dict(p => U[rows[p], :] for p in patterns)
+    Us = map(row -> U[row, :], rows)
 
     # Project each pattern in the data.
     sqrtS = cholesky(S).U
-    Yproj_blocks = Dict(p => sqrtS \ (Us[p] \ Y.X[rows[p], idxs[p]]) for p in patterns)
+    Yproj_blocks = map((U, r, idx) -> sqrtS \ (U \ Y.X[r, idx]), Us, rows, idxs)
 
     # Construct the single projected data matrix, in the correct order.
-    Yproj = Matrix{T}(undef, size(U, 2), length(Y))
-    foreach(patterns) do p
-        Yproj[:, idxs[p]] = Yproj_blocks[p]
-    end
+    Yproj = hcat(Yproj_blocks...)[:, perm]
 
-    # Compute each block of the projected noise.
-    almost_ΣT_blocks = Dict(
-        p => diag(inv(cholesky(Symmetric(Us[p]'Us[p] + 1e-9I)))) for p in patterns
+    # lens = map(length, idxs)
+    lens = map_length(idxs)
+    almost_ΣT_blocks = map(
+        (U, len) -> repeat(diag(inv(cholesky(Symmetric(U'U + 1e-9I)))), 1, len), Us, lens,
     )
 
     # Assemble blocks into a single matrix, with a different scalar observation noise
     # for each observation.
-    almost_ΣT = Matrix{T}(undef, size(Yproj))
-    foreach(patterns) do p
-        almost_ΣT[:, idxs[p]] .= almost_ΣT_blocks[p]
-    end
-    ΣT = σ² .* inv(S) * almost_ΣT .+ diag(D)
+    almost_ΣT = hcat(almost_ΣT_blocks...)[:, perm]
+    ΣT = σ² .* diag(inv(S)) .* almost_ΣT .+ diag(D)
 
     return Yproj, ΣT
 end
@@ -48,7 +43,7 @@ function regulariser(
 ) where {T<:Real}
 
     # Compute patterns and assignments of data to patterns.
-    patterns, rows, idxs = compute_patterns(y.X)
+    patterns, rows, idxs, perm = compute_patterns(y.X)
 
     # Construct the projection matrix for each pattern.
     Us = Dict(p => U[rows[p], :] for p in patterns)
@@ -79,17 +74,27 @@ function compute_patterns(Y::AbstractMatrix{Union{Missing, T}} where {T<:Real})
     patterns = unique(collect.(missingness))
 
     # For each pattern, compute the rows of `Y` that are not missing.
-    available_rows = Dict(
-        pattern => filter(n -> !pattern[n], 1:size(Y, 1)) for pattern in patterns
-    )
+    available_rows = [filter(n -> !p[n], 1:size(Y, 1)) for p in patterns]
 
     # Add the location each column of `Y` to mapping from block-to-columns.
-    idxs = Dict(pattern => Int[] for pattern in patterns)
-    for (n, pattern) in enumerate(missingness)
-        push!(idxs[pattern], n)
+    # idxs = Dict(pattern => Int[] for pattern in patterns)
+    idxs = [Int[] for pattern in patterns]
+    for (n, data_pattern) in enumerate(missingness)
+        for (m, pattern) in enumerate(patterns)
+            if data_pattern == pattern
+                push!(idxs[m], n)
+            end
+        end
     end
 
-    return patterns, available_rows, idxs
+    # Compute the permutation of the data required to restore the original order.
+    perm = sortperm(vcat(idxs...))
+
+    return patterns, available_rows, idxs, perm
 end
 
 Zygote.@nograd compute_patterns
+
+map_length(x) = map(length, x)
+
+Zygote.@nograd map_length
