@@ -20,7 +20,7 @@ The API broadly follows [Stheno.jl](https://github.com/willtebbutt/Stheno.jl/)'s
 ```
 f = OILMM(...)
 ```
-construct an Orthogonal Instantaneous Linear Mixing Model. This object represents a distribution over vector-valued functions -- see the docstring for more info.
+constructs an Orthogonal Instantaneous Linear Mixing Model. This object represents a distribution over vector-valued functions -- see the docstring for more info.
 
 ```
 f(x)
