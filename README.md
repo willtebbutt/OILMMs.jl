@@ -1,4 +1,4 @@
-# OILMMs
+# OILMMs.jl: Orthogonal Instantaneous Linear Mixing Models in Julia
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://willtebbutt.github.io/OILMMs.jl/stable)
 [![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://willtebbutt.github.io/OILMMs.jl/dev)
