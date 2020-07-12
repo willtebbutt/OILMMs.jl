@@ -9,7 +9,7 @@ using ZygoteRules
 
 using Stheno: AbstractGP, ColVecs
 
-export OILMM, posterior, denoised_marginals, rand_latent
+export OILMM, posterior
 
 include("util.jl")
 include("oilmm.jl")

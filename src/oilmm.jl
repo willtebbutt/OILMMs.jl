@@ -1,5 +1,24 @@
 """
-    
+    OILMM
+
+An Orthogonal Instantaneous Linear Mixing Model (OILMM) -- a distribution over vector-
+valued functions. Let `p` be the number of observed outputs, and `m` the number of latent
+processes, then 
+
+# Arguments:
+- fs: a length-`m` vector of Gaussian process objects from Stheno.jl.
+- U: a `p x m` matrix with mutually orthonormal columns.
+- S: an `m x m` `Diagonal` matrix. Same dim. as `fs`. Positive entries.
+- σ²: a positive scalar, variance of the observation noise.
+- D: an `m x m` `Diagonal` matrix, variance of noise on each latent process. Same size as
+    `S`. Positive entries.
+
+We recommend constructing `U` and `S` from the `svd` of some other matrix. e.g.
+```julia
+H = randn(p, m)
+U, s, _ = svd(H)
+S = Diagonal(H)
+```
 """
 struct OILMM{
     Tfs<:AbstractVector{<:AbstractGP},
@@ -17,9 +36,6 @@ end
 
 (oilmm::OILMM)(x::AbstractVector) = FiniteOILMM(oilmm, x)
 
-"""
-    
-"""
 struct FiniteOILMM{
     Toilmm<:OILMM,
     Tx<:AbstractVector,
