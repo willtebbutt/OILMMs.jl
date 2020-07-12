@@ -179,13 +179,6 @@ function Stheno.logpdf(fx::FiniteOILMM, Y::ColVecs)
     ΣT_rows = collect(eachrow(ΣT))
     lmls_latents = map((f, s, y) -> logpdf(f(x, s), y), fs, ΣT_rows, y_rows)
 
-    # # Reconstruction step.
-    # p = size(Y.X, 1)
-    # m = size(Yproj, 1)
-    # n = length(Y)
-    # regulariser = -(n * (logdet(cholesky(S)) + (p - m) * log(2π * σ²)) +
-    #     sum(abs2, (I - U * U') * Y.X) / σ²) / 2
-
     return regulariser(S, U, σ², Y) + sum(lmls_latents)
 end
 
