@@ -7,6 +7,7 @@ using Stheno
 using Test
 using Zygote
 
+using OILMMs: denoised_marginals, rand_latent
 using Stheno: AbstractGP
 
 # Helper functionality, doesn't actually run any tests.
