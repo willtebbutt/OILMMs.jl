@@ -74,7 +74,6 @@ extend_posterior_plot!(posterior_plot, f, y, :blue, "exact, true params)");
 scatter!(posterior_plot, x, y.X[1, :];
     color=:black, label="",
 );
-# display(posterior_plot); # uncomment to plot immediately.
 
 # Learning the `H` matrix from data. This is a little verbose, but it does the job.
 
@@ -142,36 +141,9 @@ Y_missing .= y.X;
 Y_missing[1:2, 25:150] .= missing;
 y_missing = ColVecs(Y_missing);
 
-# # Perform inference using the true model, generate samples, compute marginal statistics.
-# f_post_missing = posterior(f(x), y_missing)
-# fs_post_missing = OILMMs.rand_latent(rng, f_post_missing(x_test))
-# marginals_post_missing = marginals(f_post_missing(x_test))
-
 # Plot the first couple of posterior processes.
 # We'll display them later once we've done learning-related stuff below.
 extend_posterior_plot!(posterior_plot, f, y_missing, :green, "approx, true params");
-
-# true_post__missing_colour = :green
-# first_marginals_missing = marginals_post_missing.X[1, :];
-# plot!(posterior_plot, x_test, fs_post_missing.X[1, :];
-#     linewidth=1, linealpha=0.7, color=true_post__missing_colour, label="",
-# );
-# plot!(posterior_plot,
-#     x_test,
-#     [mean.(first_marginals_missing) mean.(first_marginals_missing)];
-#     linewidth=0.0,
-#     color=true_post__missing_colour,
-#     fillrange=[
-#         quantile.(first_marginals_missing, 0.01),
-#         quantile.(first_marginals_missing, 0.99),
-#     ],
-#     fillalpha=0.3,
-#     label="",
-# );
-# plot!(posterior_plot, x_test, mean.(first_marginals_missing);
-#     linewidth=2, linealpha=1, color=true_post__missing_colour, label="approx posterior (true params)",
-# );
-# # display(posterior_plot); # uncomment to show plot now.
 
 # Regularise the nlml very slightly for stability -- best not thought of as a diffuse prior.
 nlml_missing(θ::Vector) = -logpdf(build_model(θ)(x), y) + 1e-3 * sum(abs2, θ)
@@ -193,32 +165,3 @@ extend_posterior_plot!(
     posterior_plot, f_ml_missing, y_missing, :purple, "approx, learned params",
 )
 display(posterior_plot);
-
-# # Perform inference using the true model, generate samples, compute marginal statistics.
-# f_post_ml_missing = posterior(f_ml_missing(x), y_missing)
-# fs_post_ml_missing = OILMMs.rand_latent(rng, f_post_ml_missing(x_test))
-# marginals_post_ml_missing = marginals(f_post_ml_missing(x_test))
-
-# # Plot the first couple of posterior processes.
-# # We'll display them later once we've done learning-related stuff below.
-# true_post__missing_colour = :green
-# first_marginals_ml_missing = marginals_post_missing.X[1, :];
-# plot!(posterior_plot, x_test, fs_post_missing.X[1, :];
-#     linewidth=1, linealpha=0.7, color=true_post__missing_colour, label="",
-# );
-# plot!(posterior_plot,
-#     x_test,
-#     [mean.(first_marginals_missing) mean.(first_marginals_missing)];
-#     linewidth=0.0,
-#     color=true_post__missing_colour,
-#     fillrange=[
-#         quantile.(first_marginals_missing, 0.01),
-#         quantile.(first_marginals_missing, 0.99),
-#     ],
-#     fillalpha=0.3,
-#     label="",
-# );
-# plot!(posterior_plot, x_test, mean.(first_marginals_missing);
-#     linewidth=2, linealpha=1, color=true_post__missing_colour, label="approx posterior (true params)",
-# );
-
