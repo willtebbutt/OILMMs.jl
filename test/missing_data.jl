@@ -60,7 +60,9 @@
         @testset "OILMMs.regulariser AD" begin
 
             # Perform forwards-pass and construct pullback.
-            reg_ad, regulariser_ad = Zygote.pullback(OILMMs.regulariser, S, U, σ², y_missing)
+            reg_ad, regulariser_pd = Zygote.pullback(
+                OILMMs.regulariser, S, U, σ², y_missing,
+            )
 
             # Ensure that the forwards-pass is consistent with usual evaluation.
             @test reg_ad ≈ reg
@@ -72,7 +74,7 @@
                 (S, U, σ²) -> OILMMs.regulariser(S, U, σ², y_missing),
                 Δreg, S, U, σ²,
             )
-            dX_ad = regulariser_ad(Δreg)
+            dX_ad = regulariser_pd(Δreg)
 
             # Check for (approximate) equality beteen AD and finite differencing.
             @test dX_fd[1] ≈ dX_ad[1]
