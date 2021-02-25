@@ -4,6 +4,7 @@ using Distributions
 using LinearAlgebra
 using Random
 using Stheno
+using TemporalGPs
 using Zygote
 using ZygoteRules
 

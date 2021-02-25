@@ -212,7 +212,19 @@ function posterior(fx::FiniteOILMM, Y::ColVecs)
     # Condition each latent process on the projected observations.
     y_rows = collect(eachrow(Yproj))
     ΣT_rows = collect(eachrow(ΣT))
-    fs_posterior = map((f, s, y) -> f | Obs(f(x, s), collect(y)), fs, ΣT_rows, y_rows)
-
+    fs_posterior = map(
+        (f, s, y) -> build_posterior(f, x, s, collect(y)), fs, ΣT_rows, y_rows,
+    )
     return OILMM(fs_posterior, U, S, σ², D)
+end
+
+# build_posterior is a hack to work around the slightly different interfaces that
+# Stheno.jl and TemporalGPs.jl presently employ. Once everyone is using the AbstractGPs
+# interface directly, everything should be much more straightforward.
+function build_posterior(f::Stheno.GP, x, s, y::AbstractVector{<:Real})
+    return f | Obs(f(x, s), collect(y))
+end
+
+function build_posterior(f::TemporalGPs.LTISDE, x, s, y::AbstractVector{<:Real})
+    return TemporalGPs.posterior(f(x, s), y)
 end
