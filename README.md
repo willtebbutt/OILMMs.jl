@@ -12,7 +12,7 @@ The Python implementation can be found [here](https://github.com/wesselb/oilmm).
 
 ## Examples
 
-Please refer to the examples directory for basic usage.
+Please refer to the examples directory for basic usage, or below for a very quick intro.
 
 ## API
 
