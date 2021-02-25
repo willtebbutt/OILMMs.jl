@@ -58,7 +58,7 @@ function regulariser(
             p, m = size(Uo)
 
             chol_UotUo = cholesky(Symmetric(Uo'Uo + 1e-9I))
-            Yo = y.X[row, idx]
+            Yo = eltype(Uo).(y.X[row, idx])
 
             return -(n * (logdet_S + logdet(chol_UotUo) + (p - m) * log(2π * σ²)) +
                 (sum(abs2, Yo) - sum(abs2, chol_UotUo.U' \ Uo'Yo)) / σ²) / 2
