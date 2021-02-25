@@ -1,5 +1,5 @@
 """
-    OILMM
+    OILMM(fs, U, S, σ², D)
 
 An Orthogonal Instantaneous Linear Mixing Model (OILMM) -- a distribution over vector-
 valued functions. Let `p` be the number of observed outputs, and `m` the number of latent
