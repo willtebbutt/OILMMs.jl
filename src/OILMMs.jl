@@ -1,16 +1,13 @@
 module OILMMs
 
+using AbstractGPs
 using Distributions
 using LinearAlgebra
 using Random
-using Stheno
-using TemporalGPs
 using Zygote
 using ZygoteRules
 
-using Stheno: AbstractGP, ColVecs
-
-export OILMM, posterior
+export OILMM
 
 include("util.jl")
 include("oilmm.jl")
