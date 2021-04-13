@@ -1,3 +1,4 @@
+using AbstractGPs
 using Distributions
 using FiniteDifferences
 using LinearAlgebra
@@ -7,8 +8,9 @@ using Stheno
 using Test
 using Zygote
 
+using AbstractGPs: AbstractGP, FiniteGP
 using OILMMs: denoised_marginals, rand_latent
-using Stheno: AbstractGP
+using Stheno: GaussianProcessProbabilisticProgramme
 
 # Helper functionality, doesn't actually run any tests.
 include("test_util.jl")

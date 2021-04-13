@@ -96,8 +96,8 @@ function compute_patterns(Y::AbstractMatrix{Union{Missing, T}} where {T<:Real})
     return patterns, available_rows, idxs, perm
 end
 
-Zygote.@nograd compute_patterns
+ChainRulesCore.@non_differentiable compute_patterns(::Any)
 
 map_length(x) = map(length, x)
 
-Zygote.@nograd map_length
+ChainRulesCore.@non_differentiable map_length(::Any)
