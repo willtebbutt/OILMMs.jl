@@ -46,7 +46,10 @@ function consistency_tests(
     # Ensure that log p(Yte | Ytr) is self-consistent.
     f_posterior = posterior(f(x_tr, σ²), y_tr)
     x_all = vcat(x_tr, x_te)
-    y_all = vcat(y_tr, y_te)
+
+    y_tr_cv = reshape(y_tr, :, x_tr.out_dim)
+    y_te_cv = reshape(y_te, :, x_te.out_dim)
+    y_all = vec(vcat(y_tr_cv, y_te_cv))
     @test logpdf(f_posterior(x_te, σ²), y_te) ≈
         logpdf(f(x_all, σ²), y_all) - logpdf(f(x_tr, σ²), y_tr)
 
