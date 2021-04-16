@@ -31,8 +31,7 @@ logpdf(f(x), y) # compute the log marginal probability of `y` under the model.
 rand(rng, f(x)) # sample from `f` at `x`, for random number generator `rng`.
 marginals(f(x)) # compute the marginal statistics of `f` at `x`.
 ```
-`y` should be a `ColVecs` of the same length as `x`. A `ColVecs` is simply a wrapper around a `N-output x N-observations` matrix that tells this package that you mean to interpret said matrix as such. This object is helpful in that it prevents accidentally getting the observations around the wrong way. See [Stheno.jl](https://github.com/willtebbutt/Stheno.jl/)'s docs for more info.
-Additionally, `rand` and `marginals` return `ColVecs` objects. You can query the underlying matrix via the `.X` field.
+`y` should be an `AbstractVector{<:Real}` of the same length as `x`. A `ColVecs` is simply a wrapper around a `N-output x N-observations` matrix that tells this package that you mean to interpret said matrix as such.
 
 To perform inference, simply invoke the `posterior` function:
 ```
