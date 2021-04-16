@@ -1,5 +1,5 @@
 """
-    OILMM(fs, U, S, σ², D)
+    OILMM(fs, U, S, D)
 
 An Orthogonal Instantaneous Linear Mixing Model (OILMM) -- a distribution over vector-
 valued functions. Let `p` be the number of observed outputs, and `m` the number of latent
@@ -9,7 +9,6 @@ processes, then
 - fs: a length-`m` vector of Gaussian process objects from Stheno.jl.
 - U: a `p x m` matrix with mutually orthonormal columns.
 - S: an `m x m` `Diagonal` matrix. Same dim. as `fs`. Positive entries.
-- σ²: a positive scalar, variance of the observation noise.
 - D: an `m x m` `Diagonal` matrix, variance of noise on each latent process. Same size as
     `S`. Positive entries.
 
@@ -24,37 +23,30 @@ struct OILMM{
     Tfs<:AbstractVector{<:AbstractGP},
     TU<:AbstractMatrix{<:Real},
     TS<:Diagonal{<:Real},
-    Tσ²<:Real,
     TD<:Diagonal{<:Real},
 } <: AbstractGP
     fs::Tfs
     U::TU
     S::TS
-    σ²::Tσ²
     D::TD
 end
 
-(oilmm::OILMM)(x::AbstractVector) = FiniteOILMM(oilmm, x)
+noise_var(Σ::Diagonal{<:Real, <:Fill}) = FillArrays.getindex_value(Σ.diag)
 
-struct FiniteOILMM{
-    Toilmm<:OILMM,
-    Tx<:AbstractVector,
-} <: ContinuousMultivariateDistribution
-    oilmm::Toilmm
-    x::Tx
-end
+function unpack(fx::FiniteGP{<:OILMM, <:MOInput, <:Diagonal{<:Real, <:Fill}})
+    fs = fx.f.fs
+    S = fx.f.S
+    U = fx.f.U
+    D = fx.f.D
+    σ² = noise_var(fx.Σy)
+    x = fx.x.x
 
-function unpack(fx::FiniteOILMM)
-    fs = fx.oilmm.fs
-    S = fx.oilmm.S
-    U = fx.oilmm.U
-    D = fx.oilmm.D
-    σ² = fx.oilmm.σ²
-    x = fx.x
+    # Check that the number of outputs requested agrees with the model.
+    fx.x.out_dim == size(U, 1) || throw(error("out dim of x != out dim of f."))
     return fs, S, U, D, σ², x
 end
 
-Base.length(f::FiniteOILMM) = length(f.x)
+reshape_y(y::AbstractVector{<:Real}, N::Int) = ColVecs(reshape(y, N, :)')
 
 # Note that `cholesky` exploits the diagonal structure of `S`.
 function project(
@@ -88,53 +80,54 @@ function regulariser(
 end
 
 """
-    rand_latent(rng::AbstractRNG, fx::FiniteOILMM)
+    rand_latent(rng::AbstractRNG, fx::FiniteGP{<:OILMM})
 
 Sample from the latent (noiseless) process.
 
 See also `rand`.
 """
-function rand_latent(rng::AbstractRNG, fx::FiniteOILMM)
+function rand_latent(rng::AbstractRNG, fx::FiniteGP{<:OILMM})
     fs, S, U, D, σ², x = unpack(fx)
 
     # Generate from the latent processes.
     X = hcat(map((f, d) -> rand(rng, f(x, d)), fs, D.diag)...)
 
     # Transform latents into observed space.
-    return ColVecs(U * cholesky(S).U * X')
+    return vec(U * cholesky(S).U * X')
 end
 
 """
-    rand(rng::AbstractRNG, fx::FiniteOILMM)
+    rand(rng::AbstractRNG, fx::FiniteGP{<:OILMM})
 
-Sample from the OILMM, including the observation noise. Follows generative structure of
-model 2 from [1].
+Sample from the OILMM, including the observation noise.
+Follows generative structure of model 2 from [1].
+Follows the AbstractGPs.jl API.
 
 See also `rand_latent`.
 
 [1] - Bruinsma et al 2020.
 """
-function Stheno.rand(rng::AbstractRNG, fx::FiniteOILMM)
+function AbstractGPs.rand(rng::AbstractRNG, fx::FiniteGP{<:OILMM})
 
     # Sample from the latent process.
     F = rand_latent(rng, fx)
 
     # Generate iid noise and add to each output.
-    return ColVecs(F.X .+ sqrt(fx.oilmm.σ²) .* randn(rng, size(F.X)))
+    return F .+ sqrt(noise_var(fx.Σy)) .* randn(rng, size(F))
 end
 
 """
-    denoised_marginals(fx::FiniteOILMM)
+    denoised_marginals(fx::FiniteGP{<:OILMM})
 
 Returns the marginal distribution over the OILMM without the IID noise components.
 
 See also `marginals`.
 """
-function denoised_marginals(fx::FiniteOILMM)
+function denoised_marginals(fx::FiniteGP{<:OILMM})
     fs, S, U, D, σ², x = unpack(fx)
 
     # Compute the marginals over the independent latents.
-    fs_marginals = hcat(map(f -> marginals(f(x)), fs)...)
+    fs_marginals = reduce(hcat, map(f -> marginals(f(x)), fs))
     M_latent = mean.(fs_marginals)'
     V_latent = var.(fs_marginals)'
 
@@ -148,17 +141,11 @@ function denoised_marginals(fx::FiniteOILMM)
     V = abs2.(H) * V_latent
 
     # Package everything into independent Normal distributions.
-    return ColVecs(Normal.(M, sqrt.(V)))
+    return Normal.(vec(M'), sqrt.(vec(V')))
 end
 
-"""
-    marginals(fx::FiniteOILMM)
-
-Returns the marginal distribution over the output of the OILMM, including observation noise.
-
-See also `denoised_marginals`.
-"""
-function Stheno.marginals(fx::FiniteOILMM)
+# See AbstractGPs.jl API docs.
+function AbstractGPs.mean_and_var(fx::FiniteGP{<:OILMM})
     fs, S, U, D, σ², x = unpack(fx)
 
     # Compute the marginals over the independent latents.
@@ -176,18 +163,19 @@ function Stheno.marginals(fx::FiniteOILMM)
     V = abs2.(H) * (V_latent .+ D.diag) .+ σ²
 
     # Package everything into independent Normal distributions.
-    return ColVecs(Normal.(M, sqrt.(V)))
+    return vec(M'), vec(V')
 end
 
-"""
-    logpdf(fx::FiniteOILMM, Y::ColVecs{<:Real})
+AbstractGPs.mean(fx::FiniteGP{<:OILMM}) = mean_and_var(fx)[1]
 
-Follows implementation in appendix A.4 from Bruinsma et al 2020.
-"""
-function Stheno.logpdf(fx::FiniteOILMM, Y::ColVecs)
+AbstractGPs.var(fx::FiniteGP{<:OILMM}) = mean_and_var(fx)[2]
+
+# See AbstractGPs.jl API docs.
+function AbstractGPs.logpdf(fx::FiniteGP{<:OILMM}, y::AbstractVector{<:Real})
     fs, S, U, D, σ², x = unpack(fx)
 
     # Projection step.
+    Y = reshape_y(y, length(x))
     Yproj, ΣT = project(S, U, Y, σ², D)
 
     # Latent process log marginal likelihood calculation.
@@ -198,33 +186,17 @@ function Stheno.logpdf(fx::FiniteOILMM, Y::ColVecs)
     return regulariser(S, U, σ², Y) + sum(lmls_latents)
 end
 
-"""
-    posterior(fx::FiniteOILMM, Y::ColVecs{<:Real})
-
-Returns the new `OILMM` object that results from conditioning `fx` on observations `Y`.
-"""
-function posterior(fx::FiniteOILMM, Y::ColVecs)
+# See AbstractGPs.jl API docs.
+function AbstractGPs.posterior(fx::FiniteGP{<:OILMM}, y::AbstractVector{<:Real})
     fs, S, U, D, σ², x = unpack(fx)
 
     # Projection step.
+    Y = reshape_y(y, length(x))
     Yproj, ΣT = project(S, U, Y, σ², D)
 
     # Condition each latent process on the projected observations.
     y_rows = collect(eachrow(Yproj))
     ΣT_rows = collect(eachrow(ΣT))
-    fs_posterior = map(
-        (f, s, y) -> build_posterior(f, x, s, collect(y)), fs, ΣT_rows, y_rows,
-    )
-    return OILMM(fs_posterior, U, S, σ², D)
-end
-
-# build_posterior is a hack to work around the slightly different interfaces that
-# Stheno.jl and TemporalGPs.jl presently employ. Once everyone is using the AbstractGPs
-# interface directly, everything should be much more straightforward.
-function build_posterior(f::Stheno.GP, x, s, y::AbstractVector{<:Real})
-    return f | Obs(f(x, s), collect(y))
-end
-
-function build_posterior(f::TemporalGPs.LTISDE, x, s, y::AbstractVector{<:Real})
-    return TemporalGPs.posterior(f(x, s), y)
+    fs_posterior = map((f, s, y) -> posterior(f(x, s), collect(y)), fs, ΣT_rows, y_rows)
+    return OILMM(fs_posterior, U, S, D)
 end

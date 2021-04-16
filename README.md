@@ -45,34 +45,36 @@ All public functions should have docstrings. If you encounter something that is 
 ## Worked Example
 
 ```julia
+using AbstractGPs
 using LinearAlgebra
 using OILMMs
 using Random
-using Stheno
-
 
 # Specify and construct an OILMM.
 p = 10
 m = 3
 U, s, _ = svd(randn(p, m))
+σ² = 0.1
 
 f = OILMM(
-    [GP(EQ(), GPC()) for _ in 1:m],
+    [GP(SEKernel()) for _ in 1:m],
     U,
     Diagonal(s),
-    0.1,
     Diagonal(rand(m) .+ 0.1),
 );
 
 # Sample from the model.
-x = randn(10);
-Y = rand(f(x));
+x = MOInput(randn(10), p);
+fx = f(x, σ²);
+
+rng = MersenneTwister(123456);
+y = rand(rng, fx);
 
 # Compute the logpdf of the data under the model.
-logpdf(f(x), Y)
+logpdf(fx, y)
 
 # Perform posterior inference. This produces another OILMM.
-f_post = posterior(f(x), Y)
+f_post = posterior(fx, y)
 
 # Compute the posterior marginals. We can also use `rand` and `logpdf` as before.
 post_marginals = marginals(f_post(x));
@@ -86,34 +88,36 @@ simply by wrapping each of the base processes using `to_sde`. See the TemporalGP
 for more info on this.
 
 ```julia
+using AbstractGPs
 using LinearAlgebra
 using OILMMs
 using Random
-using Stheno
 using TemporalGPs
 
 # Specify and construct an OILMM.
 p = 10
 m = 3
 U, s, _ = svd(randn(p, m))
+σ² = 0.1
 
 f = OILMM(
-    [to_sde(GP(Matern52(), GPC()), SArrayStorage(Float64)) for _ in 1:m],
+    [to_sde(GP(Matern52Kernel()), SArrayStorage(Float64)) for _ in 1:m],
     U,
     Diagonal(s),
-    0.1,
     Diagonal(rand(m) .+ 0.1),
 );
 
 # Sample from the model. LARGE DATA SET!
-x = RegularSpacing(0.0, 1.0, 1_000_000);
-Y = rand(f(x));
+x = MOInput(RegularSpacing(0.0, 1.0, 1_000_000), p);
+fx = f(x, σ²);
+rng = MersenneTwister(123456);
+y = rand(rng, fx);
 
 # Compute the logpdf of the data under the model.
-logpdf(f(x), Y)
+logpdf(fx, y)
 
 # Perform posterior inference. This produces another OILMM.
-f_post = OILMMs.posterior(f(x), Y)
+f_post = OILMMs.posterior(fx, y)
 
 # Compute the posterior marginals. We can also use `rand` and `logpdf` as before.
 post_marginals = marginals(f_post(x));
