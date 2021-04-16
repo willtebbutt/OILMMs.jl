@@ -46,6 +46,8 @@ function unpack(fx::FiniteGP{<:OILMM, <:MOInput, <:Diagonal{<:Real, <:Fill}})
     return fs, S, U, D, σ², x
 end
 
+reshape_y(y::AbstractVector{<:Real}, N::Int) = ColVecs(reshape(y, N, :)')
+
 # Note that `cholesky` exploits the diagonal structure of `S`.
 function project(
     S::Diagonal{T},
@@ -139,7 +141,7 @@ function denoised_marginals(fx::FiniteGP{<:OILMM})
     V = abs2.(H) * V_latent
 
     # Package everything into independent Normal distributions.
-    return Normal.(vec(M), sqrt.(vec(V)))
+    return Normal.(vec(M'), sqrt.(vec(V')))
 end
 
 # See AbstractGPs.jl API docs.
@@ -161,7 +163,7 @@ function AbstractGPs.mean_and_var(fx::FiniteGP{<:OILMM})
     V = abs2.(H) * (V_latent .+ D.diag) .+ σ²
 
     # Package everything into independent Normal distributions.
-    return vec(M), vec(V)
+    return vec(M'), vec(V')
 end
 
 AbstractGPs.mean(fx::FiniteGP{<:OILMM}) = mean_and_var(fx)[1]
@@ -173,7 +175,7 @@ function AbstractGPs.logpdf(fx::FiniteGP{<:OILMM}, y::AbstractVector{<:Real})
     fs, S, U, D, σ², x = unpack(fx)
 
     # Projection step.
-    Y = ColVecs(reshape(y, :, length(x)))
+    Y = reshape_y(y, length(x))
     Yproj, ΣT = project(S, U, Y, σ², D)
 
     # Latent process log marginal likelihood calculation.
@@ -189,7 +191,7 @@ function AbstractGPs.posterior(fx::FiniteGP{<:OILMM}, y::AbstractVector{<:Real})
     fs, S, U, D, σ², x = unpack(fx)
 
     # Projection step.
-    Y = ColVecs(reshape(y, :, length(x)))
+    Y = reshape_y(y, length(x))
     Yproj, ΣT = project(S, U, Y, σ², D)
 
     # Condition each latent process on the projected observations.
