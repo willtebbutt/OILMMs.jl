@@ -181,7 +181,7 @@ function AbstractGPs.logpdf(fx::FiniteGP{<:OILMM}, y::AbstractVector{<:Real})
     # Latent process log marginal likelihood calculation.
     y_rows = collect(eachrow(Yproj))
     ΣT_rows = collect(eachrow(ΣT))
-    lmls_latents = map((f, s, y) -> logpdf(f(x, s), y), fs, ΣT_rows, y_rows)
+    lmls_latents = map((f, s, y) -> logpdf(f(x, collect(s)), collect(y)), fs, ΣT_rows, y_rows)
 
     return regulariser(S, U, σ², Y) + sum(lmls_latents)
 end
@@ -197,6 +197,6 @@ function AbstractGPs.posterior(fx::FiniteGP{<:OILMM}, y::AbstractVector{<:Real})
     # Condition each latent process on the projected observations.
     y_rows = collect(eachrow(Yproj))
     ΣT_rows = collect(eachrow(ΣT))
-    fs_posterior = map((f, s, y) -> posterior(f(x, s), collect(y)), fs, ΣT_rows, y_rows)
+    fs_posterior = map((f, s, y) -> posterior(f(x, collect(s)), collect(y)), fs, ΣT_rows, y_rows)
     return OILMM(fs_posterior, U, S, D)
 end
