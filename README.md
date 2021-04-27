@@ -122,6 +122,91 @@ f_post = OILMMs.posterior(fx, y)
 post_marginals = marginals(f_post(x));
 ```
 
+Notice that this example is nearly identical to the one above, because all GP-related
+packages used utilise the
+[AbstractGPs.jl](https://github.com/JuliaGaussianProcesses/AbstractGPs.jl) APIs.
+
+
+## Worked Example Learning Parameters
+
+We don't provide a fit+predict interface, instead we rely on external packages to provide
+something similar that is more flexible.
+Specifically, we recommend using a mixture of
+[ParameterHandling.jl](https://github.com/invenia/ParameterHandling.jl/),
+[Optim.jl](https://github.com/JuliaNLSolvers/Optim.jl)
+or some other general non-linear optimisation package), and
+[Zygote.jl](https://github.com/FluxML/Zygote.jl/). Below we provide a small example:
+```julia
+# Load GP-related packages.
+using AbstractGPs
+using OILMMs
+using TemporalGPs
+
+# Load standard packages from the Julia ecosystem
+using LinearAlgebra
+using Optim # Standard optimisation algorithms.
+using ParameterHandling # Helper functionality for dealing with model parameters.
+using Random
+using Zygote # Algorithmic Differentiation
+
+# Specify OILMM parameters as a NamedTuple.
+# Utilise orthogonal, and positive from ParameterHandling.jl to constrain appropriately.
+p = 2
+m = 1
+θ_init = (
+    U = orthogonal(randn(p, m)),
+    s = positive.(rand(m) .+ 0.1),
+    σ² = positive(0.1),
+)
+
+# Define a function which builds an OILMM, given a NamedTuple of parameters.
+function build_oilmm(θ::NamedTuple)
+    return OILMM(
+        [to_sde(GP(Matern52Kernel()), SArrayStorage(Float64)) for _ in 1:m],
+        θ.U,
+        Diagonal(θ.s),
+        Diagonal(zeros(m)),
+    )
+end
+
+# Generate some synthetic data to train on.
+f = build_oilmm(ParameterHandling.value(θ_init));
+const x = MOInput(RegularSpacing(0.0, 0.01, 1_000_000), p);
+fx = f(x, 0.1);
+rng = MersenneTwister(123456);
+const y = rand(rng, fx);
+
+# Define a function which computes the NLML given the parameters.
+function objective(θ::NamedTuple)
+    f = build_oilmm(θ)
+    return -logpdf(f(x, θ.σ²), y)
+end
+
+# Build a version of the objective function which can be used with Optim.jl.
+θ_init_flat, unflatten = flatten(θ_init);
+unpack(θ::Vector{<:Real}) = ParameterHandling.value(unflatten(θ))
+objective(θ::Vector{<:Real}) = objective(unpack(θ))
+
+# Utilise Optim.jl + Zygote.jl to optimise the model parameters.
+training_results = Optim.optimize(
+    objective,
+    θ -> only(Zygote.gradient(objective, θ)),
+    θ_init_flat + randn(length(θ_init_flat)), # Add some noise to make learning non-trivial
+    BFGS(
+        alphaguess = Optim.LineSearches.InitialStatic(scaled=true),
+        linesearch = Optim.LineSearches.BackTracking(),
+    ),
+    Optim.Options(show_trace = true);
+    inplace=false,
+)
+
+# Compute posterior marginals at optimal solution.
+θ_opt = unpack(training_results.minimizer)
+f = build_oilmm(θ_opt)
+f_post = posterior(f(x, θ_opt.σ²), y)
+fx = marginals(f_post(x))
+```
+
 
 ## Bib Info
 Please refer to the CITATION.bib file.
