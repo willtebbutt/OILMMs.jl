@@ -116,7 +116,7 @@ y = rand(rng, fx);
 logpdf(fx, y)
 
 # Perform posterior inference. This produces another OILMM.
-f_post = OILMMs.posterior(fx, y)
+f_post = posterior(fx, y)
 
 # Compute the posterior marginals. We can also use `rand` and `logpdf` as before.
 post_marginals = marginals(f_post(x));
