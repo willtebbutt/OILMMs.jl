@@ -141,7 +141,7 @@ function denoised_marginals(fx::FiniteGP{<:OILMM})
     V = abs2.(H) * V_latent
 
     # Package everything into independent Normal distributions.
-    return Normal.(vec(M'), sqrt.(vec(V')))
+    return AbstractGPs.Normal.(vec(M'), sqrt.(vec(V')))
 end
 
 # See AbstractGPs.jl API docs.
