@@ -1,7 +1,7 @@
 name = "OILMMs"
 uuid = "42abab5c-8093-4643-9324-a21c2f6fbe28"
 authors = ["Will Tebbutt <wt0881@my.bristol.ac.uk>"]
-version = "0.2.3"
+version = "0.2.4"
 
 [deps]
 AbstractGPs = "99985d1d-32ba-4be9-9821-2ec096f28918"
@@ -12,7 +12,7 @@ LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 
 [compat]
-AbstractGPs = "0.3"
+AbstractGPs = "0.3, 0.4"
 ChainRulesCore = "1"
 FillArrays = "0.11, 0.12"
 KernelFunctions = "0.10"
